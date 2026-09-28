@@ -1,0 +1,19 @@
+{
+  "name": "hextriad",
+  "private": true,
+  "scripts": {
+    "build": "esbuild entry.tsx --bundle --minify --format=iife --jsx=automatic --define:process.env.NODE_ENV='\"production\"' --outfile=build/bundle.js && tailwindcss -i tw.in.css -o build/styles.css --minify && node build-html.js"
+  },
+  "dependencies": {
+    "boardgame.io": "^0.50.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0"
+  }
+}
