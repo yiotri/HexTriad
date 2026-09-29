@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "HexTriad",
+  "short_name": "HexTriad",
+  "description": "A two-player abstract strategy game. Play a friend on the same screen or challenge the bot.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "categories": ["games"],
+  "icons": [
+    { "src": "app-icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "app-icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "app-icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
