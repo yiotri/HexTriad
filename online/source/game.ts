@@ -25,6 +25,7 @@ export interface GState {
   lastMove: number | null; // cell of the most recent placement (for UI)
   squaresLeft: Record<PlayerID, number>; // each player's remaining squares
   lastTriadOptions: number | null; // how many valid pairs the last triad could have used (one was picked at random)
+  turnOver?: boolean; // online version only: a move asked to end the turn (see makeOnlineHexon)
 }
 
 export type TriadPair = { circle: number; square: number };
@@ -292,5 +293,34 @@ export const Hexon = makeHexon(BOARD_SIZE);
 
 /** Online play: one game per board size, each with its own name so the server keeps them apart. */
 export const onlineGameName = (size: number) => `hexon-${size}`;
-export const makeOnlineHexon = (size: number): Game<GState> => ({ ...makeHexon(size, true), name: onlineGameName(size) });
+
+/**
+ * The same moves, but without boardgame.io events. A move that calls an event (endTurn, setStage) is never
+ * shown ahead of time by an online client: the client waits for the server's answer, a full round trip on
+ * every move. So here endTurn only marks G.turnOver and the turn's endIf ends the turn, and there are no
+ * stages: the hex step is simply "pendingHexOptions is set" (every move already checks it). The page then
+ * shows squares, circles, hexes and passes the moment they are made. Triangles still wait for the server,
+ * because it picks the random pair (that is what keeps the pick fair).
+ */
+const withoutEvents = <A extends unknown[]>(fn: (c: MoveContext, ...a: A) => unknown) =>
+  (c: MoveContext, ...a: A) =>
+    fn({ ...c, events: { endTurn: () => { c.G.turnOver = true; }, setStage: () => {} } }, ...a);
+
+export const makeOnlineHexon = (size: number): Game<GState> => ({
+  name: onlineGameName(size),
+  setup: () => createInitialState(size),
+  moves: {
+    placeSquare: withoutEvents(placeSquare),
+    placeCircle: withoutEvents(placeCircle),
+    placeTriangle: withoutEvents(placeTriangle),
+    placeHexagon: withoutEvents(placeHexagon),
+    pass: withoutEvents(pass),
+  } as any,
+  turn: {
+    order: RANDOM_FIRST,
+    endIf: ({ G }) => !!G.turnOver,
+    onEnd: ({ G }) => { G.turnOver = false; },
+  },
+  endIf: ({ G }) => computeGameOver(G),
+});
 
