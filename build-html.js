@@ -1,5 +1,6 @@
-// Combines build/bundle.js and build/styles.css into ../site/index.html,
-// and writes the files that make the site installable as an app (manifest, service worker, icons).
+// Combines build/bundle.js and build/styles.css into light/index.html, and writes the files that
+// make it installable as an app. The manifest and icons are taken from site/ (the polished version),
+// which this build never writes to.
 const fs = require('fs');
 const path = require('path');
 const js = fs.readFileSync('build/bundle.js', 'utf8').replace(/<\/script>/g, '<\\/script>');
@@ -36,11 +37,13 @@ const html = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const out = '../site';
+const out = 'light';
 fs.mkdirSync(path.join(out, 'icons'), { recursive: true });
 fs.writeFileSync(path.join(out, 'index.html'), html);
-fs.copyFileSync('public/manifest.webmanifest', path.join(out, 'manifest.webmanifest'));
-for (const f of fs.readdirSync('public/icons')) fs.copyFileSync(path.join('public/icons', f), path.join(out, 'icons', f));
+// site/ keeps its icons in app-icons/; the light build puts them in icons/.
+const manifest = fs.readFileSync('site/manifest.webmanifest', 'utf8').replace(/app-icons\//g, 'icons/');
+fs.writeFileSync(path.join(out, 'manifest.webmanifest'), manifest);
+for (const f of fs.readdirSync('site/app-icons')) fs.copyFileSync(path.join('site/app-icons', f), path.join(out, 'icons', f));
 const version = Date.now().toString(36);
 fs.writeFileSync(path.join(out, 'sw.js'), fs.readFileSync('sw.template.js', 'utf8').replace('__VERSION__', version));
-console.log('Wrote ../site (index.html, manifest.webmanifest, sw.js, icons/)');
+console.log('Wrote light/ (index.html, manifest.webmanifest, sw.js, icons/)');
