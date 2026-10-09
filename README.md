@@ -59,7 +59,7 @@ pip install open_spiel
 
 ```python
 import pyspiel
-import hex0n_openspiel  # registers "python_hex0n" (run from the python/ folder)
+import hex0n_openspiel  # registers "python_hex0n" (run from the api/ folder)
 
 game = pyspiel.load_game("python_hex0n", {"size": 5, "tie_break": True, "opponent_pieces": True})
 ```
@@ -112,7 +112,7 @@ The server keeps matches in memory, so restarting it ends games in progress. To 
 | Path | Contents |
 |---|---|
 | `site/` | The polished version: a single self-contained page that can be installed as an app. |
-| `HexTriad.tsx`, `entry.tsx`, `tw.in.css`, `build-html.js`, `sw.template.js`, `public/` | Source of the light version: rules, bot and UI in one React file. |
+| `HexTriad.tsx`, `entry.tsx`, `tw.in.css`, `build-html.js`, `sw.template.js` | Source of the light version: rules, bot and UI in one React file. |
 | `api/` | Rules engine and OpenSpiel adapter. |
 | `online/` | Multiplayer server and its shared rules. |
 | `sound/` | Generative soundtrack and sonification of agentic play. |
