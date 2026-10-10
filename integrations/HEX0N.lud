@@ -1,0 +1,186 @@
+// HEX0N for Ludii. 
+// "Touching" always means the 8 surrounding cells (diagonals included).
+
+// Pieces of a given kind (either colour) touching a site.
+(define "Near"
+    (sites Around #2 All
+        if:(or
+            (= (what at:(to)) (id #1 P1))
+            (= (what at:(to)) (id #1 P2))
+        )
+    )
+)
+
+// The mover's own pieces of a given kind touching a site.
+(define "OwnNear"
+    (sites Around #2 All if:(= (what at:(to)) (id #1 Mover)))
+)
+
+(define "Touches" (< 0 (count Sites in:("Near" #1 #2))))
+
+(define "TouchesOwn" (< 0 (count Sites in:("OwnNear" #1 #2))))
+
+// A triad is stored as one number: circle site * 1000 + square site.
+(define "TriadCircle" (/ (var "Triad") 1000))
+
+(define "TriadSquare" (% (var "Triad") 1000))
+
+(define "TriadSites"
+    (sites {(var "Triangle") ("TriadCircle") ("TriadSquare")})
+)
+
+// Size of a player's largest group of touching hexes (0 if none).
+(define "LargestGroup"
+    (max 0
+        (max
+            (results
+                from:(sites Occupied by:#1 component:"Hex")
+                to:(from)
+                (size Group at:(from) All)
+            )
+        )
+    )
+)
+
+(define "Rank" (+ (* 100 (score #1)) <Tie:bonus>))
+
+//------------------------------------------------------------------------------
+
+(game "HEX0N"
+    (players 2)
+    (equipment {
+        (board (square <Board:size>))
+        (hand Each)
+        (piece "Square" Each)
+        (piece "Disc" Each)
+        (piece "Triangle" Each)
+        (piece "Hex" Each)
+    })
+    (rules
+        (start {
+            (place "Square1" (handSite P1) count:<Board:squares>)
+            (place "Square2" (handSite P2) count:<Board:squares>)
+        })
+
+        (play
+            (if (is Pending)
+                // Second half of a triad turn: a hex on one of the cleared cells.
+                (move Add
+                    (piece (id "Hex" Mover))
+                    (to (sites Pending))
+                    (then (addScore Mover 1))
+                )
+                (or {
+                    // Square: any empty cell, while the supply lasts.
+                    (move
+                        (from (handSite Mover) if:(is Occupied (from)))
+                        (to (sites Empty))
+                    )
+
+                    // Circle: an empty cell touching a square.
+                    (move Add
+                        (piece (id "Disc" Mover))
+                        (to (sites Empty) if:("Touches" "Square" (to)))
+                    )
+
+                    // Triangle: an empty cell touching a circle and a square.
+                    // One eligible circle + square pair is picked at random,
+                    // the three pieces are removed, and the mover goes again.
+                    (move Add
+                        (piece (id "Triangle" Mover))
+                        (to (sites Empty) if:<Pieces:legal>)
+                        (then
+                            (seq {
+                                (set Var "Triangle" (last To))
+                                (random
+                                    (forEach Site
+                                        ("Near" "Disc" (var "Triangle"))
+                                        (forEach Value
+                                            (array ("Near" "Square" (var "Triangle")))
+                                            (if (<Pieces:mine>
+                                                    (is Mover (who at:(site)))
+                                                    (is Mover (who at:(value)))
+                                                )
+                                                (set Var "Triad"
+                                                    (+ (* 1000 (site)) (value))
+                                                )
+                                            )
+                                        )
+                                    )
+                                    num:1
+                                )
+                                (remove ("TriadSites"))
+                                (set Pending ("TriadSites"))
+                                (moveAgain)
+                            })
+                        )
+                    )
+                })
+            )
+        )
+
+        // A player with no placement passes; the game ends when neither can move.
+        (end
+            (if (all Passed) {
+                (if (> ("Rank" P1) ("Rank" P2)) (result P1 Win))
+                (if (< ("Rank" P1) ("Rank" P2)) (result P2 Win))
+                (if (= ("Rank" P1) ("Rank" P2)) (result Mover Draw))
+            })
+        )
+    )
+)
+
+//------------------------------------------------------------------------------
+
+(option "Board Size" <Board> args:{ <size> <squares> }
+    {
+    (item "5x5" <5> <8>  "The game is played on a 5x5 board with 8 squares per player.")*
+    (item "7x7" <7> <16> "The game is played on a 7x7 board with 16 squares per player.")
+    }
+)
+
+(option "Tie Break" <Tie> args:{ <bonus> }
+    {
+    (item "Largest Group" <("LargestGroup" #1)> "With equal hexes, the larger connected group of hexes wins.")*
+    (item "Draw"          <0>                   "With equal hexes, the game is a draw.")
+    }
+)
+
+(option "Triad Pieces" <Pieces> args:{ <mine> <legal> }
+    {
+    (item "Either Colour"
+        <or>
+        <(and {
+            ("Touches" "Disc" (to))
+            ("Touches" "Square" (to))
+            (or ("TouchesOwn" "Disc" (to)) ("TouchesOwn" "Square" (to)))
+        })>
+        "A triad may use an opponent's circle or square, as long as one of the two is the mover's."
+    )*
+    (item "Own Only"
+        <and>
+        <(and ("TouchesOwn" "Disc" (to)) ("TouchesOwn" "Square" (to)))>
+        "The circle and the square of a triad must both be the mover's."
+    )
+    }
+)
+
+//------------------------------------------------------------------------------
+
+(metadata
+    (info
+        {
+        (description "HEX0N is a two-player abstract strategy game. Players place squares, circles and triangles on a small grid and complete square-circle-triangle triads, which collapse into permanent hexes. Squares are a scarce, depletable resource, and players can build on each other's pieces.")
+        (rules "Two players share a 5x5 board (7x7 in the extended mode). Touching always means the eight surrounding cells, diagonals included. On your turn you place one piece. A square goes on any empty cell; each player has a limited supply (8 on 5x5, 16 on 7x7) and removed squares do not come back. A circle goes on an empty cell touching a square of either colour. A triangle goes on an empty cell touching a circle and a square of any colours, as long as at least one of the two is yours. When you place a triangle, the triangle, the circle and the square are removed, and in the same turn you place a hex on one of the three cleared cells. If the triangle touches several eligible circle and square pairs, one pair is chosen at random with equal chance. Hexes are permanent and score one point each. You may pass only when you have no legal placement. The game ends when neither player can move. The player with more hexes wins. With equal hexes, the player with the larger connected group of hexes (diagonals connect) wins; if those are equal too, the game is a draw.")
+        (source "<a href=\"https://github.com/yiotri/hextriad\" target=\"_blank\" class=\"style1\" style=\"color: #0000EE\" />github.com/yiotri/hextriad</a>")
+        (classification "board/space/territory")
+        }
+    )
+
+    (graphics {
+        (board Style Board)
+        (player Colour P1 (colour Blue))
+        (player Colour P2 (colour Red))
+        (show Score Always)
+    })
+)
